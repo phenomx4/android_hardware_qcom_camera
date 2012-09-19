@@ -22,7 +22,7 @@ ifeq ($(strip $(TARGET_USES_ION)),true)
 LOCAL_CFLAGS += -DUSE_ION
 endif
 
-ifeq ($(TARGET_BOARD_PLATFORM),msm8960)
+ifeq ($(TARGET_BOARD_PLATFORM),msm7x30)
 
 MM_CAM_FILES:= \
         mm_camera_interface2.c \
@@ -40,7 +40,7 @@ LOCAL_CFLAGS+= -DHW_ENCODE
 LOCAL_C_INCLUDES+= $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
-ifeq ($(TARGET_BOARD_PLATFORM),msm8960)
+ifeq ($(TARGET_BOARD_PLATFORM),msm7x30)
 LOCAL_HAL_FILES := QCameraHAL.cpp QCameraHWI_Parm.cpp\
                    QCameraHWI.cpp QCameraHWI_Preview.cpp \
                    QCameraHWI_Record.cpp QCameraHWI_Still.cpp \
