@@ -42,9 +42,9 @@
 extern "C" {
 #include <linux/android_pmem.h>
 #include <linux/ion.h>
-#include <camera.h>
-#include <camera_defs_i.h>
-#include <mm_camera_interface.h>
+#include "camera.h"
+//#include <camera_defs_i.h>
+//#include <mm_camera_interface.h>
 }
 
 struct str_map {
@@ -148,13 +148,13 @@ public:
     void receiveLiveSnapshot(uint32_t jpeg_size);
     void receiveCameraStats(camstats_type stype, camera_preview_histogram_info* histinfo);
     void receiveRecordingFrame(struct msm_frame *frame);
-    void receiveJpegPicture(status_t status, mm_camera_buffer_t *encoded_buffer);
+    void receiveJpegPicture();
     void jpeg_set_location();
     void receiveJpegPictureFragment(uint8_t *buf, uint32_t size);
     void notifyShutter(bool mPlayShutterSoundOnly);
     void receive_camframe_error_timeout();
     static void getCameraInfo();
-    void receiveRawPicture(status_t status,struct msm_frame *postviewframe, struct msm_frame *mainframe);
+    void receiveRawPicture();
     int allocate_ion_memory(int *main_ion_fd, struct ion_allocation_data* alloc,
     struct ion_fd_data* ion_info_fd, int ion_type, int size, int *memfd);
     int deallocate_ion_memory(int *main_ion_fd, struct ion_fd_data* ion_info_fd);
@@ -177,8 +177,8 @@ private:
     bool native_set_dimension (int camfd);
     bool native_jpeg_encode (void);
     bool updatePictureDimension(const QCameraParameters& params, int& width, int& height);
-    bool native_set_parms(camera_parm_type_t type, uint16_t length, void *value);
-    bool native_set_parms(camera_parm_type_t type, uint16_t length, void *value, int *result);
+    bool native_set_parms(mm_camera_parm_type_t type, uint16_t length, void *value);
+    bool native_set_parms(mm_camera_parm_type_t type, uint16_t length, void *value, int *result);
     bool native_zoom_image(int fd, int srcOffset, int dstOffset, common_crop_t *crop);
 
     status_t startInitialPreview();
