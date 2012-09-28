@@ -174,11 +174,11 @@ private:
     friend void *auto_focus_thread(void *user);
     void runAutoFocus();
     status_t cancelAutoFocusInternal();
-    bool native_set_dimension (int camfd);
+    bool native_set_dimension (cam_ctrl_dimension_t *value);
     bool native_jpeg_encode (void);
     bool updatePictureDimension(const QCameraParameters& params, int& width, int& height);
-    bool native_set_parms(mm_camera_parm_type_t type, uint16_t length, void *value);
-    bool native_set_parms(mm_camera_parm_type_t type, uint16_t length, void *value, int *result);
+    bool native_set_parms(cam_ctrl_type type, uint16_t length, void *value);
+    bool native_set_parms(cam_ctrl_type type, uint16_t length, void *value, int *result);
     bool native_zoom_image(int fd, int srcOffset, int dstOffset, common_crop_t *crop);
 
     status_t startInitialPreview();
@@ -528,9 +528,12 @@ private:
     int32_t                 mStatSize;
 
 
+    int mCameraControlFd;
+    struct msm_camsensor_info mSensorInfo;
     cam_ctrl_dimension_t mDimension;
     bool mAutoFocusThreadRunning;
     Mutex mAutoFocusThreadLock;
+    int mAutoFocusFd;
 
     Mutex mAfLock;
 
