@@ -235,7 +235,6 @@ union zoomimage
  * Modifying preview size requires modification
  * in bitmasks for boardproperties
  */
-static uint32_t  PREVIEW_SIZE_COUNT;
 static uint32_t  HFR_SIZE_COUNT;
 
 board_property boardProperties[] = {
@@ -274,7 +273,16 @@ static struct camera_size_type for_3D_picture_sizes[] = {
 static int data_counter = 0;
 static int record_flag = 0;
 static camera_size_type* picture_sizes;
-static camera_size_type* preview_sizes;
+static struct camera_size_type preview_sizes[] = {
+  {1280, 720},
+  { 800, 480},
+  { 720, 480},
+  { 640, 480},
+  { 640, 384},
+  { 320, 240},
+  { 176, 144},
+};
+static uint32_t PREVIEW_SIZE_COUNT = sizeof(preview_sizes)/sizeof(camera_size_type);
 static camera_size_type* hfr_sizes;
 static unsigned int PICTURE_SIZE_COUNT;
 static const camera_size_type * picture_sizes_ptr;
@@ -1857,7 +1865,7 @@ void QualcommCameraHardware::initDefaultParameters()
         ALOGE("CAMERA_PARM_DIMENSION failed!!!");
         return;
     }
-
+    ALOGI("CAMERA_PARM_DIMENSION succeed!!!");
     mParameters.set(QCameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, "75");
 
     String8 valuesStr = create_sizes_str(jpeg_thumbnail_sizes, JPEG_THUMBNAIL_SIZE_COUNT);
@@ -2246,8 +2254,10 @@ bool QualcommCameraHardware::startCamera()
     *(void **)&LINK_default_sensor_get_snapshot_sizes =
         ::dlsym(libmmcamera, "default_sensor_get_snapshot_sizes");
 
+/* Disabling until support is available.
     *(void **)&LINK_default_sensor_get_preview_sizes =
         ::dlsym(libmmcamera, "default_sensor_get_preview_sizes");
+*/
 
     *(void **)&LINK_launch_cam_conf_thread =
         ::dlsym(libmmcamera, "launch_cam_conf_thread");
@@ -2331,12 +2341,6 @@ bool QualcommCameraHardware::startCamera()
     else
         ALOGI("%s: camsensor name %s, flash %d", __FUNCTION__,
              mSensorInfo.name, mSensorInfo.flash_enabled);
-
-    preview_sizes = LINK_default_sensor_get_preview_sizes(&PREVIEW_SIZE_COUNT);
-    if (!preview_sizes || !PREVIEW_SIZE_COUNT) {
-        ALOGE("startCamera X: could not get preview sizes");
-        return false;
-    }
 
     picture_sizes = LINK_default_sensor_get_snapshot_sizes(&PICTURE_SIZE_COUNT);
     if (!picture_sizes || !PICTURE_SIZE_COUNT) {
