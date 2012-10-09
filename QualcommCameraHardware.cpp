@@ -6308,10 +6308,12 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
         mCamOps.mm_camera_start(CAMERA_OPS_RAW_SNAPSHOT,0,
                          NULL);
     } else if(mSnapshotFormat == PICTURE_FORMAT_JPEG){
+        if (!native_start_snapshot(mCameraControlFd))
+            ALOGE("%s: native_start_snapshot failed!", __FUNCTION__);
+#if 0
         if(!mZslEnable || mZslFlashEnable){
             mCamOps.mm_camera_start(CAMERA_OPS_SNAPSHOT,0,
                  0);
-#if 0
             }else{
                 notifyShutter(TRUE);
                 initZslParameter();
@@ -6319,8 +6321,8 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
                                      mZslCaptureParms.thumbnail_height,mZslCaptureParms.num_captures);
                 mCamOps.mm_camera_start(current_ops_type,(void *)&mZslCaptureParms,
                       (void *)&mImageEncodeParms);
-#endif
         }
+#endif
         receiveRawPicture();
         mSnapshotFormat = 0;
         mJpegThreadWaitLock.lock();
@@ -6339,8 +6341,10 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
             deinitRaw();
     }else if(mSnapshotFormat == PICTURE_FORMAT_RAW){
         notifyShutter(TRUE);
-        mCamOps.mm_camera_start(CAMERA_OPS_RAW_SNAPSHOT,0,
-                                 NULL);
+        if (!native_start_raw_snapshot(mCameraControlFd))
+            ALOGE("%s: native_start_raw_snapshot failed!", __FUNCTION__);
+//        mCamOps.mm_camera_start(CAMERA_OPS_RAW_SNAPSHOT,0,
+//                                 NULL);
         // Waiting for callback to come
         ALOGV("runSnapshotThread : waiting for callback to come");
         receiveRawPicture();
