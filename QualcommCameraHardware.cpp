@@ -80,8 +80,8 @@ extern "C" {
 
 #define DUMP_LIVESHOT_JPEG_FILE 0
 
-#define DEFAULT_PICTURE_WIDTH  640
-#define DEFAULT_PICTURE_HEIGHT 480
+#define DEFAULT_PICTURE_WIDTH  2048
+#define DEFAULT_PICTURE_HEIGHT 1536
 #define DEFAULT_PICTURE_WIDTH_3D 1920
 #define DEFAULT_PICTURE_HEIGHT_3D 1080
 #define INITIAL_PREVIEW_HEIGHT 144
@@ -746,7 +746,6 @@ static const str_map focus_modes[] = {
     { QCameraParameters::FOCUS_MODE_INFINITY, DONT_CARE },
     { QCameraParameters::FOCUS_MODE_NORMAL,   AF_MODE_NORMAL },
     { QCameraParameters::FOCUS_MODE_MACRO,    AF_MODE_MACRO },
-   // { QCameraParameters::FOCUS_MODE_CONTINUOUS_PICTURE, AF_MODE_CAF },
     { QCameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO, DONT_CARE }
 };
 
@@ -940,6 +939,9 @@ static void receive_jpeg_callback(jpeg_event_t status)
 
 static int8_t parm_is_supported(mm_camera_parm_type_t type)
 {
+    if (type == CAMERA_PARM_SATURATION ||
+        type == CAMERA_PARM_ZOOM)
+        return false;
     return true;
 }
 
@@ -1547,6 +1549,8 @@ QualcommCameraHardware::QualcommCameraHardware()
             jpegPadding = 0;
             break;
     }
+
+#if 0
     // Initialize with default format values. The format values can be
     // overriden when application requests.
     mDimension.prev_format     = CAMERA_YUV_420_NV21;
@@ -1556,6 +1560,7 @@ QualcommCameraHardware::QualcommCameraHardware()
         mDimension.enc_format  = CAMERA_YUV_420_NV12;
     mDimension.main_img_format = CAMERA_YUV_420_NV21;
     mDimension.thumb_format    = CAMERA_YUV_420_NV21;
+#endif
 
     if( (mCurrentTarget == TARGET_MSM7630) || (mCurrentTarget == TARGET_MSM8660) ){
         /* DIS is disabled all the time in VPE support targets.
@@ -1649,7 +1654,18 @@ bool QualcommCameraHardware::supportsFaceDetection() {
 void QualcommCameraHardware::initDefaultParameters()
 {
     ALOGI("initDefaultParameters E");
-
+    mDimension.ui_thumbnail_width =
+            thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].width;
+    mDimension.ui_thumbnail_height =
+            thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].height;
+    mDimension.picture_width = DEFAULT_PICTURE_WIDTH;
+    mDimension.picture_height = DEFAULT_PICTURE_HEIGHT;
+    bool ret = native_set_parms(CAMERA_SET_PARM_DIMENSION,
+               sizeof(cam_ctrl_dimension_t), &mDimension);
+    if (ret != true) {
+        ALOGE("CAMERA_PARM_DIMENSION failed!!!");
+        return;
+    }
     hasAutoFocusSupport();
     //Disable DIS for Web Camera
     if(mCurrentTarget == TARGET_MSM7630 ||
@@ -1773,7 +1789,7 @@ void QualcommCameraHardware::initDefaultParameters()
         mMaxZoom = 4;
         zoom_ratio_values = "100,150,200,250,300";
         if (mMaxZoom > 0)
-            ALOGE("Maximum zoom value is %d", mMaxZoom);
+            ALOGI("Maximum zoom value is %d", mMaxZoom);
 
         preview_frame_rate_values = create_values_range_str(
             MINIMUM_FPS, MAXIMUM_FPS);
@@ -1852,20 +1868,6 @@ void QualcommCameraHardware::initDefaultParameters()
     mParameters.set(QCameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT,
                     THUMBNAIL_HEIGHT_STR); // informative
 
-    //set mDimension
-    mDimension.ui_thumbnail_width =
-            thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].width;
-    mDimension.ui_thumbnail_height =
-            thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].height;
-    mDimension.picture_width = DEFAULT_PICTURE_WIDTH;
-    mDimension.picture_height = DEFAULT_PICTURE_HEIGHT;
-    bool ret = native_set_parms(CAMERA_SET_PARM_DIMENSION,
-               sizeof(cam_ctrl_dimension_t), &mDimension);
-    if (ret != true) {
-        ALOGE("CAMERA_PARM_DIMENSION failed!!!");
-        return;
-    }
-    ALOGI("CAMERA_PARM_DIMENSION succeed!!!");
     mParameters.set(QCameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, "75");
 
     String8 valuesStr = create_sizes_str(jpeg_thumbnail_sizes, JPEG_THUMBNAIL_SIZE_COUNT);
@@ -3095,6 +3097,7 @@ bool QualcommCameraHardware::native_set_parms(
     ctrlCmd.timeout_ms = 5000;
     ctrlCmd.type       = (uint16_t)type;
     ctrlCmd.length     = length;
+    ctrlCmd.resp_fd    = mCameraControlFd;
     ctrlCmd.value      = value;
 
     ALOGV("native_set_parms: type: %d, length=%d", type, sizeof(value));
@@ -3132,10 +3135,12 @@ bool QualcommCameraHardware::native_set_parms(
     ctrlCmd.timeout_ms = 5000;
     ctrlCmd.type       = (uint16_t)type;
     ctrlCmd.length     = length;
+    ctrlCmd.resp_fd    = mCameraControlFd;
     ctrlCmd.value      = value;
 
     ALOGV("%s: fd %d, type %d, length %d", __FUNCTION__,
          mCameraControlFd, type, length);
+
     if (ioctl(mCameraControlFd, MSM_CAM_IOCTL_CTRL_COMMAND, &ctrlCmd) > 0 ||
         ctrlCmd.status == CAM_CTRL_SUCCESS || ctrlCmd.status == CAM_CTRL_INVALID_PARM)  {
         *result = ctrlCmd.status;
@@ -4094,6 +4099,7 @@ static int parse_size(const char *str, int &width, int &height)
 }
 QualcommCameraHardware* hardware;
 
+#ifdef USE_ION
 int QualcommCameraHardware::allocate_ion_memory(int *main_ion_fd, struct ion_allocation_data* alloc,
      struct ion_fd_data* ion_info_fd, int ion_type, int size, int *memfd)
 {
@@ -4135,6 +4141,7 @@ ION_ALLOC_FAILED:
 ION_OPEN_FAILED:
     return -1;
 }
+
 int QualcommCameraHardware::deallocate_ion_memory(int *main_ion_fd, struct ion_fd_data* ion_info_fd)
 {
     struct ion_handle_data handle_data;
@@ -4145,12 +4152,15 @@ int QualcommCameraHardware::deallocate_ion_memory(int *main_ion_fd, struct ion_f
     close(*main_ion_fd);
     return rc;
 }
+#endif
 
 bool QualcommCameraHardware::initPreview()
 {
     const char * pmem_region;
     int CbCrOffset = 0;
+#ifdef USE_ION
     int ion_heap;
+#endif
     mParameters.getPreviewSize(&previewWidth, &previewHeight);
     const char *recordSize = NULL;
 
@@ -4229,7 +4239,9 @@ bool QualcommCameraHardware::initPreview()
     mInSnapshotModeWaitLock.unlock();
 
     pmem_region = "/dev/pmem_adsp";
+#ifdef USE_ION
     ion_heap = ION_CAMERA_HEAP_ID;
+#endif
 
     int cnt = 0;
 
@@ -4248,6 +4260,7 @@ bool QualcommCameraHardware::initPreview()
 #endif
     CbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
 
+#if 0
     //Pass the yuv formats, display dimensions,
     //so that vfe will be initialized accordingly.
     mDimension.display_luma_width = previewWidth;
@@ -4270,6 +4283,7 @@ bool QualcommCameraHardware::initPreview()
     ALOGV("mDimension.display_luma_height = %d", mDimension.display_luma_height);
     ALOGV("mDimension.display_chroma_width = %d", mDimension.display_chroma_width);
     ALOGV("mDimension.display_chroma_height = %d", mDimension.display_chroma_height);
+#endif
 
     dstOffset = 0;
     //set DIS value to get the updated video width and height to calculate
@@ -4282,10 +4296,12 @@ bool QualcommCameraHardware::initPreview()
         }
     }
 
-  //Pass the original video width and height and get the required width
+    //Pass the original video width and height and get the required width
     //and height for record buffer allocation
+#if 0
     mDimension.orig_video_width = videoWidth;
     mDimension.orig_video_height = videoHeight;
+#endif
     if(mZslEnable){
         //Limitation of ZSL  where the thumbnail and display dimensions should be the same
         mDimension.ui_thumbnail_width = mDimension.display_width;
@@ -4297,6 +4313,7 @@ bool QualcommCameraHardware::initPreview()
           mDimension.picture_height = mPictureHeight;
         }
     }
+
     // mDimension will be filled with thumbnail_width, thumbnail_height,
     // orig_picture_dx, and orig_picture_dy after this function call. We need to
     // keep it for jpeg_encoder_encode.
@@ -4716,10 +4733,12 @@ bool QualcommCameraHardware::createSnapshotMemory (int numberOfRawBuffers, int n
 {
     char * pmem_region;
     int ret;
+#ifdef USE_ION
     int ion_heap = ION_CP_MM_HEAP_ID;
 
     if((mCurrentTarget == TARGET_MSM7627A) || (mCurrentTarget == TARGET_MSM7630))
        ion_heap = ION_CAMERA_HEAP_ID;
+#endif
 
     if(mCurrentTarget == TARGET_MSM8660) {
        pmem_region = "/dev/pmem_smipool";
@@ -4882,7 +4901,9 @@ bool QualcommCameraHardware::createSnapshotMemory (int numberOfRawBuffers, int n
 bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 {
     const char * pmem_region;
+#ifdef USE_ION
     int ion_heap;
+#endif
     int postViewBufferSize;
     uint32_t pictureAspectRatio;
     uint32_t i;
@@ -4956,10 +4977,12 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
         mThumbnailHeight = mPostviewHeight;
     }
 
+#if 0
     if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO){
         mDimension.main_img_format = CAMERA_YUV_420_NV21_ADRENO;
         mDimension.thumb_format = CAMERA_YUV_420_NV21_ADRENO;
     }
+#endif
 
     mDimension.ui_thumbnail_width = mPostviewWidth;
     mDimension.ui_thumbnail_height = mPostviewHeight;
@@ -5049,7 +5072,9 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 
     //PostView
     pmem_region = "/dev/pmem_adsp";
+#ifdef USE_ION
     ion_heap = ION_CAMERA_HEAP_ID;
+#endif
     // Create memory for Raw YUV frames and Jpeg images
     if( createSnapshotMemory(numCapture, numCapture, initJpegHeap) == false )
     {
@@ -6089,7 +6114,8 @@ void QualcommCameraHardware::runAutoFocus()
             Mutex::Autolock cameraRunningLock(&mCameraRunningLock);
             if(mCameraRunning){
                 ALOGV("Start AF");
-                status = native_set_afmode(mAutoFocusFd, afMode);
+                //FIXME
+                status = true; //native_set_afmode(mAutoFocusFd, afMode);
             }else{
                 ALOGV("As Camera preview is not running, AF not issued");
                 status = false;
@@ -6112,6 +6138,8 @@ void QualcommCameraHardware::runAutoFocus()
     }
 
     ALOGV("af done: %d", (int)status);
+    close(mAutoFocusFd);
+    mAutoFocusFd = -1;
 
 done:
     mAutoFocusThreadRunning = false;
@@ -7326,14 +7354,18 @@ uint8_t *mm_camera_do_mmap(uint32_t size, int *pmemFd)
 bool QualcommCameraHardware::initRecord()
 {
     const char *pmem_region;
+#ifdef USE_ION
     int ion_heap = ION_CP_MM_HEAP_ID;
+#endif
     int CbCrOffset;
     int recordBufferSize;
     int active, type =0;
 
     ALOGV("initREcord E");
+#ifdef USE_ION
     if((mCurrentTarget == TARGET_MSM7630))
        ion_heap = ION_CAMERA_HEAP_ID;
+#endif
 
     if(mZslEnable){
        ALOGV("initRecord X.. Not intializing Record buffers in ZSL mode");
@@ -8245,8 +8277,8 @@ bool QualcommCameraHardware::previewEnabled()
 status_t QualcommCameraHardware::setRecordSize(const QCameraParameters& params)
 {
     const char *recordSize = NULL;
-
     recordSize = params.get(QCameraParameters::KEY_VIDEO_SIZE);
+    params.getPreviewSize(&previewWidth, &previewHeight);
     if(!recordSize) {
         mParameters.set(QCameraParameters::KEY_VIDEO_SIZE, "");
         //If application didn't set this parameter string, use the values from
@@ -8774,7 +8806,6 @@ status_t QualcommCameraHardware::setWhiteBalance(const QCameraParameters& params
     }
         ALOGE("Invalid whitebalance value: %s", (str == NULL) ? "NULL" : str);
         return BAD_VALUE;
-
 }
 
 status_t QualcommCameraHardware::setFlash(const QCameraParameters& params)
@@ -9359,10 +9390,9 @@ status_t QualcommCameraHardware::setRotation(const QCameraParameters& params)
 
 status_t QualcommCameraHardware::setZoom(const QCameraParameters& params)
 {
-//    if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_ZOOM)) {
+    if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_ZOOM)) {
         ALOGE("Parameter setZoom is not supported for this sensor");
         return NO_ERROR;
-#if 0
     }
     status_t rc = NO_ERROR;
     // No matter how many different zoom values the driver can provide, HAL
@@ -9387,7 +9417,6 @@ status_t QualcommCameraHardware::setZoom(const QCameraParameters& params)
     }
 
     return rc;
-#endif
 }
 
 status_t QualcommCameraHardware::setDenoise(const QCameraParameters& params)
@@ -9465,6 +9494,9 @@ status_t QualcommCameraHardware::setSnapshotCount(const QCameraParameters& param
 
 status_t QualcommCameraHardware::updateFocusDistances(const char *focusmode)
 {
+#if 1 //FIXME
+    return NO_ERROR;
+#else
     ALOGV("%s: IN", __FUNCTION__);
     focus_distances_info_t focusDistances;
     if ( mCfgControl.mm_camera_get_parm(CAMERA_PARM_FOCUS_DISTANCES,
@@ -9486,6 +9518,7 @@ status_t QualcommCameraHardware::updateFocusDistances(const char *focusmode)
     }
     ALOGE("%s: get CAMERA_PARM_FOCUS_DISTANCES failed!!!", __FUNCTION__);
     return BAD_VALUE;
+#endif
 }
 
 status_t QualcommCameraHardware::setMeteringAreas(const QCameraParameters& params)
@@ -9554,13 +9587,10 @@ status_t QualcommCameraHardware::setFocusMode(const QCameraParameters& params)
 
             if(mHasAutoFocusSupport){
                 int cafSupport = FALSE;
-                if(!strcmp(str, QCameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO) ||
-                   !strcmp(str, QCameraParameters::FOCUS_MODE_CONTINUOUS_PICTURE)){
+                if(!strcmp(str, QCameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO))
                     cafSupport = TRUE;
-                }
                 ALOGV("Continuous Auto Focus %d", cafSupport);
-//FIXME
-//                native_set_parms(CAMERA_PARM_CONTINUOUS_AF, sizeof(int8_t), (void *)&cafSupport);
+                native_set_parms(CAMERA_SET_CAF, sizeof(int8_t), (void *)&cafSupport);
             }
             // Focus step is reset to infinity when preview is started. We do
             // not need to do anything now.

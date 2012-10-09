@@ -328,22 +328,30 @@ typedef struct {
 }cam_prop_t;
 
 typedef struct {
+//size: 0x24 bytes
   uint16_t video_width;         /* Video width seen by VFE could be different than orig. Ex. DIS */
   uint16_t video_height;        /* Video height seen by VFE */
   uint16_t picture_width;       /* Picture width seen by VFE */
   uint16_t picture_height;      /* Picture height seen by VFE */
   uint16_t display_width;       /* width of display */
   uint16_t display_height;      /* height of display */
-  uint16_t orig_video_width;    /* original video width received */
-  uint16_t orig_video_height;   /* original video height received */
   uint16_t orig_picture_dx;     /* original picture width received */
   uint16_t orig_picture_dy;     /* original picture height received */
+#if 0
+  uint16_t orig_video_width;    /* original video width received */
+  uint16_t orig_video_height;   /* original video height received */
+#endif
   uint16_t ui_thumbnail_height;
   uint16_t ui_thumbnail_width;
   uint16_t thumbnail_height;
   uint16_t thumbnail_width;
   uint16_t raw_picture_height;
   uint16_t raw_picture_width;
+  uint16_t filler;
+  uint16_t filler2;
+  uint16_t filler3;
+  uint16_t filler4;
+#if 0
   uint32_t hjr_xtra_buff_for_bayer_filtering;
   cam_format_t    prev_format;
   cam_format_t    enc_format;
@@ -366,6 +374,7 @@ typedef struct {
   uint16_t main_img_luma_height;
   uint16_t main_img_chroma_width;
   uint16_t main_img_chroma_height;
+#endif
 } cam_ctrl_dimension_t;
 
 typedef enum {
