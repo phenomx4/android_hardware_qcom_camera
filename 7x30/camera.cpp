@@ -165,7 +165,14 @@ static void wrap_queue_buffer_hook(void *data, void* buffer)
 
     dev = (priv_camera_device_t*) data;
     window = dev->window;
+
+    if (window == 0)
+        return;
+
     heap =  gCameraHals[dev->cameraid]->getPreviewHeap();
+    if (heap == 0)
+        return;
+
     int offset = (int)buffer;
     char *frame = (char *)(heap->base()) + offset;
 
@@ -247,6 +254,9 @@ static camera_memory_t *wrap_memory_data(priv_camera_device_t *dev,
     if (!dev->request_memory)
         return NULL;
 
+    if (dataPtr == NULL)
+        return NULL;
+
     heap = dataPtr->getMemory(&offset, &size);
     data = (void *)((char *)(heap->base()) + offset);
 
@@ -284,15 +294,21 @@ static void wrap_data_callback(int32_t msg_type, const sp<IMemory>& dataPtr,
     LOGD("%s: type %i", __FUNCTION__, msg_type);
     dump_msg(__FUNCTION__, msg_type);
 
-    if(!user)
+    if (!user)
         return;
 
     dev = (priv_camera_device_t*) user;
+
+    if (dataPtr == NULL)
+        return;
 
     data = wrap_memory_data(dev, dataPtr);
 
     if (dev->data_callback)
         dev->data_callback(msg_type, data, 0, NULL, dev->user);
+
+    if (NULL != data)
+        data->release(data);
 }
 
 static void wrap_data_callback_timestamp(nsecs_t timestamp, int32_t msg_type,
